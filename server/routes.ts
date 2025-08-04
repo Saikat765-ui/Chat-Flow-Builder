@@ -74,19 +74,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { nodes, edges } = req.body;
       
-      // Validation logic: Check if there are more than one nodes and more than one node has empty target handles
-      if (nodes.length > 1) {
-        const nodesWithoutTargets = nodes.filter((node: any) => {
-          const incomingEdges = edges.filter((edge: any) => edge.target === node.id);
-          return incomingEdges.length === 0;
+      // Basic validation checks
+      if (!Array.isArray(nodes) || !Array.isArray(edges)) {
+        return res.status(400).json({
+          message: "Invalid flow structure",
+          error: "Nodes and edges must be arrays"
         });
-        
-        if (nodesWithoutTargets.length > 1) {
-          return res.status(400).json({ 
-            message: "Cannot save Flow", 
-            error: "More than one node has empty target handles" 
+      }
+
+      // Check for duplicate node IDs
+      const nodeIds = new Set();
+      for (const node of nodes) {
+        if (nodeIds.has(node.id)) {
+          return res.status(400).json({
+            message: "Invalid flow structure",
+            error: "Duplicate node IDs found"
           });
         }
+        nodeIds.add(node.id);
+      }
+
+      // Validate edge connections
+      for (const edge of edges) {
+        // Check if source and target nodes exist
+        if (!nodeIds.has(edge.source) || !nodeIds.has(edge.target)) {
+          return res.status(400).json({
+            message: "Invalid flow structure",
+            error: "Edge references non-existent node"
+          });
+        }
+
+        // Check for self-referencing edges
+        if (edge.source === edge.target) {
+          return res.status(400).json({
+            message: "Invalid flow structure",
+            error: "Self-referencing edges are not allowed"
+          });
+        }
+      }
+
+      // Check for disconnected nodes (warning only)
+      const disconnectedNodes = nodes.filter((node: any) => {
+        const hasIncoming = edges.some((edge: any) => edge.target === node.id);
+        const hasOutgoing = edges.some((edge: any) => edge.source === node.id);
+        return !hasIncoming && !hasOutgoing;
+      });
+
+      if (disconnectedNodes.length > 0) {
+        console.warn(`Warning: Flow contains ${disconnectedNodes.length} disconnected nodes`);
       }
       
       res.json({ valid: true, message: "Flow is valid" });
