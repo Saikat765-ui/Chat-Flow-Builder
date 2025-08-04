@@ -1,4 +1,4 @@
-# FlowForge
+# Chatbot Flow Builder
 
 A full-stack chatbot flow builder application that allows users to create visual chatbot workflows using a drag-and-drop interface. Built with React Flow, shadcn/ui components, and PostgreSQL.
 
